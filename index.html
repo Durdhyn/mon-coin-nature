@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mon Coin Nature — carte nationale V4.1</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--green:#28634b;--cream:#f5f4ee;--ink:#20332c}*{box-sizing:border-box}body{margin:0;font:15px system-ui,-apple-system,Segoe UI,sans-serif;background:var(--cream);color:var(--ink)}header{padding:14px 16px;background:white;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 10px #0001}h1{font-size:19px;margin:0}header small{color:#68766f}.pill{border-radius:20px;padding:8px 12px;background:#e8eee9;color:var(--green);font-weight:700}main{max-width:900px;margin:auto;padding:12px}.intro{padding:10px 4px}.intro h2{font-size:20px;margin:0 0 4px}.intro p{margin:0;color:#66736d;font-size:13px}.toolbar,.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.toolbar button,.actions button,form button{border:1px solid #d8dfd9;background:white;border-radius:12px;padding:11px 13px;font-weight:650;color:var(--ink);font-size:14px}.toolbar button.active,.primary{background:var(--green)!important;color:white!important;border-color:var(--green)!important}#map{height:56vh;min-height:360px;border-radius:16px;overflow:hidden;border:1px solid #d9dfda}.panel{background:white;border:1px solid #e1e6e1;border-radius:14px;padding:13px;margin-top:12px}.muted{font-size:12px;color:#68766f;line-height:1.5}.panel strong{display:block;margin-bottom:5px}.formgrid{display:grid;gap:10px;margin-top:10px}label{font-size:13px;font-weight:650}input,select,textarea{width:100%;padding:11px;border:1px solid #ccd5ce;border-radius:10px;font:inherit;background:white;color:var(--ink)}textarea{min-height:70px;resize:vertical}.hidden{display:none!important}.status{padding:10px 12px;background:#edf4ef;border-radius:10px;color:#28533e;font-size:13px;margin-top:10px}.leaflet-popup-content{line-height:1.5}
+.lake-sheet{margin-top:12px;background:#fff;border:1px solid #dfe6df;border-radius:14px;padding:14px}
+.lake-sheet h3{margin:0 0 8px;font-size:18px}
+.lake-sheet h4{font-size:14px;margin:14px 0 4px;color:#28634b}
+.lake-sheet p{margin:4px 0;line-height:1.5}
+.lake-sheet ul{margin:5px 0 0;padding-left:19px;line-height:1.5}
+.lake-sheet .tag{display:inline-block;border-radius:20px;padding:5px 9px;background:#f1f3ed;font-size:12px;font-weight:700;margin:3px 4px 3px 0}
+.lake-sheet .warning{background:#fff5df;color:#76520b;border-radius:9px;padding:9px;margin-top:8px;font-size:13px}
+.lake-sheet a{color:#176b9a;font-weight:650}
+footer{padding:14px 4px;color:#6a766f;font-size:11px}
+#searchResults .search-result{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 10px;border:1px solid #d8dfd9;border-radius:10px;background:#f8faf7;color:#20332c;font:inherit}
+#searchResults .search-result small{display:block;color:#68766f;font-size:11px;margin-top:2px}
+#placeSearch{min-width:0;flex:1}
+@media(max-width:420px){#searchPanel .primary{padding:10px;font-size:13px}}.leaflet-control-layers{font-size:13px}.national-note{font-size:12px;color:#68766f}@media(min-width:700px){#map{height:560px}.formgrid{grid-template-columns:1fr 1fr}.formgrid .wide{grid-column:1/-1}}
+</style></head>
+<body>
+<header><div><h1>🍃 Mon Coin Nature</h1><small>Carte nationale — recherche des plans d’eau</small></div><span class="pill">V6.1 diagnostic fonds</span></header>
+<main>
+<section class="intro"><h2>Explorer la carte</h2><p>Explore les plans d’eau partout en France. Les contours nationaux sont affichés via BD TOPAGE® ; à l’échelle locale, charge les plans d’eau OpenStreetMap pour ouvrir leur fiche provisoire. Les trois fiches suivies et tes repères privés sont conservés.</p></section>
+<div class="toolbar"><button class="active" data-filter="all">Tout voir</button><button data-filter="lakes">💧 Lacs référencés</button><button data-filter="mushroom">🍄 Champignons</button><button data-filter="fishing">🎣 Pêche</button><button data-filter="mine">📍 Mes repères</button></div>
+<section class="panel" id="searchPanel">
+<strong>🔎 Rechercher un plan d’eau ou un lieu</strong>
+<div class="muted">Recherche par nom de lac/étang, commune ou département. Les résultats servent à centrer la carte ; les contours restent ceux de la BD TOPAGE®.</div>
+<div style="display:flex;gap:8px;margin-top:9px">
+<input id="placeSearch" type="search" placeholder="Ex. lac de Guirande, Felzins, Lot…" aria-label="Nom du lac, commune ou département">
+<button id="searchBtn" class="primary" type="button">Rechercher</button>
+</div>
+<div id="searchResults" class="muted" aria-live="polite" style="margin-top:8px"></div>
+</section>
+<div class="status" style="margin-bottom:8px"><label for="mapSource">Fond de carte : </label><select id="mapSource" style="max-width:200px"><option value="0">OpenStreetMap</option><option value="1">Carto clair</option><option value="2">Esri relief</option></select><div id="tileState" style="margin-top:6px">Chargement…</div></div><div id="mapWarning" class="status hidden" role="status"></div><div id="map" aria-label="Carte interactive"></div>
+<div class="actions">
+<button class="primary" id="add">＋ Ajouter un repère</button>
+<button id="locate">◎ Me localiser</button>
+<button id="franceView">🇫🇷 Vue France</button>
+</div>
+<section class="panel" id="nationalPanel">
+<strong>🗺️ Plans d’eau de France — référencement progressif</strong>
+<div class="muted">Les contours officiels des plans d’eau sont disponibles en option (lacs, étangs, retenues, gravières inondées…). La couche se charge depuis le service cartographique du Sandre et nécessite une connexion Internet.</div>
+<label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-weight:650">
+<input type="checkbox" id="topageToggle" style="width:20px;height:20px"> Afficher les contours nationaux BD TOPAGE®
+</label>
+<div class="muted" id="topageStatus" style="margin-top:7px">Les contours sont affichés automatiquement à l'ouverture de la carte.</div>
+<div class="actions"><button class="primary" id="loadNearbyWaters">💧 Référencer les plans d’eau visibles</button><button id="clearNearbyWaters">Effacer les points chargés</button></div>
+<div class="muted" id="waterLoadStatus">Zoome sur un secteur (niveau 10 minimum) : les fiches provisoires se chargent automatiquement. Tu peux aussi utiliser le bouton. Les points proviennent d’OpenStreetMap et ne constituent pas encore l’import complet de la BD TOPAGE® ; les fiches réglementaires restent à vérifier.</div>
+<div class="actions">
+<button id="lacsFrance">Explorer Lacs de France</button>
+<button id="topageInfo">Source officielle BD TOPAGE®</button>
+</div>
+<div class="muted">Lacs de France sert de source complémentaire pour les fiches descriptives, activités et équipements. La carte TOPAGE affiche les géométries officielles ; la présence d’un plan d’eau ne confirme aucun droit de pêche, de stationnement ou de bivouac.</div>
+</section>
+<section class="panel hidden" id="editor"><strong>📍 Nouveau repère — déplace le marqueur si besoin</strong><div class="muted" id="editorHint">Le point est provisoire. Tu peux le déplacer directement sur la carte avant de l’enregistrer.</div>
+<form id="pinForm" class="formgrid">
+<div><label for="kind">Type de repère</label><select id="kind"><option value="fishing">🎣 Coin de pêche</option><option value="mushroom">🍄 Coin à champignons</option></select></div>
+<div><label for="name">Nom du repère</label><input id="name" maxlength="70" placeholder="Ex. Petit étang dans les bois" required></div>
+<div class="wide"><label for="description">Description (facultatif)</label><textarea id="description" maxlength="500" placeholder="Accès, stationnement, espèces observées…"></textarea></div>
+<div class="wide"><div class="muted">🔒 Visibilité : <b>Privé par défaut</b>. Dans cet essai, le repère reste enregistré uniquement sur cet appareil. Le partage public sera ajouté dans une prochaine étape.</div></div>
+<div class="wide actions"><button class="primary" type="submit">Enregistrer mon repère</button><button type="button" id="cancel">Annuler</button></div>
+</form></section>
+<section class="panel"><strong id="selection">Aucun repère sélectionné</strong><div class="muted" id="detail">Quatre repères de démonstration (2 pêche, 2 champignons) sont visibles sur la carte. Les repères enregistrés apparaîtront ici. Tu peux tester en ajoutant un point sur la carte.</div><div class="actions hidden" id="nav"><button id="google">Google Maps</button><button id="waze">Waze</button></div></section>
+<section class="lake-sheet hidden" id="lakeSheet" aria-live="polite"></section>
+<section class="panel"><strong>À savoir pour cet essai</strong><div class="muted">💧 Les marqueurs bleus représentent les lacs référencés ; les icônes 🎣 et 🍄 représentent tes repères personnels. Tes repères sont stockés localement dans le navigateur de cet appareil et ne sont pas synchronisés. Les fonds de carte nécessitent une connexion Internet. La présence d’un lac sur la carte ne confirme aucun droit d’accès, de pêche ou de bivouac : ces informations devront être vérifiées séparément.</div></section>
+<footer>Carte © OpenStreetMap contributors · Recherche de lieux © OpenStreetMap/Photon et Nominatim · Données hydrographiques BD TOPAGE® 2026 © IGN / OFB — Sandre · Mon Coin Nature</footer>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const lakes=[
+ {id:'pareloup',name:'Lac de Pareloup',lat:44.203432,lng:2.752352,place:'Salles-Curan / Arvieu, Aveyron (12)',source:'Tourisme Aveyron et Fédération de pêche de l’Aveyron',
+  size:'Environ 1 230 ha et 130 km de berges.',category:'Grand lac de retenue — réglementation spécifique de navigation.',
+  fish:['Brochet','Sandre','Perche','Carpe','Brème','Gardon','Écrevisse signal'],
+  night:'Pêche de la carpe de nuit annoncée sur l’ensemble du lac, sauf réserves temporaires. Vérifier les limites et l’arrêté en vigueur avant installation.',
+  boat:'Plusieurs rampes de mise à l’eau sont répertoriées : Notre-Dame-d’Aures, Les Vernhes, Villefranquette et Le Fraysse. Le lac est parfois très venté. Consulter le règlement de navigation avant toute sortie. Le type de moteur autorisé doit être confirmé dans ce règlement.',
+  access:'Grand lac avec de nombreuses anses. Des rampes disposent de parkings pour véhicules et remorques ; cela ne garantit pas un stationnement au bord du poste.',
+  bivouac:'À vérifier. La pêche de nuit ne vaut pas autorisation de bivouaquer ou de camper. Aucune autorisation générale de bivouac n’est confirmée dans les sources consultées.',
+  photos:'https://www.tourisme-aveyron.com/fr/decouvrir/les-territoires-aveyron/pareloup-levezou/que-visiter-sur-le-levezou/lac-pareloup',
+  sources:[['Pêche et espèces — Tourisme Aveyron','https://www.tourisme-aveyron.com/fr/decouvrir/les-territoires-aveyron/pareloup-levezou/sport-et-nature/pecher'],['Rampes et parcours carpe de nuit — Pêche Aveyron','https://www.pecheaveyron.fr/fr/fiche/_TFOpar221/'],['Navigation — Pêche Aveyron','https://www.pecheaveyron.fr/pecher-en-aveyron/reglementation/reglementation-de-la-navigation-en-aveyron/']]},
+ {id:'beaumont',name:'Lac de Beaumont-de-Lomagne',lat:43.883825,lng:1.001794,place:'Beaumont-de-Lomagne, Tarn-et-Garonne (82)',source:'Fédération de pêche du Tarn-et-Garonne et Tarn-et-Garonne Tourisme',
+  size:'Environ 12,7 ha selon la fiche fédérale consultée.',category:'Plan d’eau de 2e catégorie.',
+  fish:['Black-bass','Sandre','Carpe','Gardon','Brochet','Perche','Silure'],
+  night:'Parcours carpe de nuit sur tout le plan d’eau. Les emplacements de nuit sont payants et les commodités du camping peuvent être utilisées. Contacter le Village de Loisirs Le Lomagnol pour réserver.',
+  boat:'Pêche depuis une embarcation interdite. Bateau amorceur autorisé. Ne pas confondre les deux.',
+  access:'Parking public gratuit à l’entrée. Les voitures des locataires du camping/gîtes/mobil-homes sont les seules autorisées à pénétrer sur le site de la base de loisirs selon l’office de tourisme.',
+  bivouac:'À vérifier. Les postes payants de pêche de nuit et les commodités du camping ne constituent pas, à eux seuls, une autorisation générale de bivouac.',
+  photos:'https://www.tourisme-tarnetgaronne.fr/lomagne-tarn-et-garonnaise/les-incontournables-en-lomagne/le-lac-de-beaumont-de-lomagne/',
+  sources:[['Fiche du plan d’eau — Fédération de pêche 82','https://www.pechetarnetgaronne.fr/trouver-mon-site-de-peche/'],['Accès, parking et services — Tarn-et-Garonne Tourisme','https://www.tourisme-tarnetgaronne.fr/lomagne-tarn-et-garonnaise/les-incontournables-en-lomagne/le-lac-de-beaumont-de-lomagne/'],['Réglementation 2026 — Fédération de pêche 82','https://www.pechetarnetgaronne.fr/pecher-dans-les-regles/']]},
+ {id:'guirande',name:'Lac de Guirande (Felzins)',lat:44.629517,lng:2.143806,place:'Felzins / Bagnac-sur-Célé, Lot (46)',source:'Fédération de pêche du Lot et arrêté préfectoral 2026',
+  size:'Environ 13,5 ha.',category:'Plan d’eau de 2e catégorie.',
+  fish:['Poissons blancs','Truite arc-en-ciel','Perche','Brochet','Sandre','Black-bass','Carpe','Silure'],
+  night:'Le parcours carpe de nuit de Guirande n’apparaît pas dans la liste des parcours autorisés de l’arrêté préfectoral du Lot pour 2026. Ne pas considérer la pêche de nuit comme autorisée sans confirmation écrite de la fédération ou de l’AAPPMA.',
+  boat:'Aucune information officielle suffisamment précise retrouvée sur la mise à l’eau, le bateau ou le moteur électrique. À vérifier auprès de la Fédération du Lot.',
+  access:'Plan d’eau situé sur les communes de Felzins et Bagnac-sur-Célé. Les conditions de stationnement au bord de l’eau et l’accès des véhicules restent à confirmer.',
+  bivouac:'À vérifier. Aucune autorisation fiable de bivouac ou de camping sur les berges n’a été trouvée.',
+  special:'Parcours no-kill black-bass : remise à l’eau obligatoire pour cette espèce selon l’arrêté préfectoral 2026.',
+  photos:'https://www.ladepeche.fr/2022/03/16/au-bord-du-lac-de-guirande-10173190.php',
+  sources:[['Guide de pêche du Lot 2026 — espèces et plans d’eau','https://www.les-granges.com/wp-content/uploads/2026/02/GUIDE-DE-LA-PECHE-2026.pdf'],['Arrêté préfectoral pêche 2026 — no-kill black-bass à Guirande','https://www.lot.gouv.fr/contenu/telechargement/23973/179352/file/projet_arr%C3%AAte_2026_version_consult_public.pdf'],['Fédération de pêche du Lot — carte des plans d’eau','https://www.pechelot.com/carte-interactive-lacs-et-plans-deau/']]}
+];
+if(typeof L==='undefined'){
+ document.getElementById('map').innerHTML='<div style="padding:20px;background:#fff4e5;color:#663d00">La bibliothèque de carte n’a pas pu charger. Vérifie la connexion Internet et ouvre ce fichier dans Chrome (pas dans un aperçu de fichiers).</div>';
+ throw new Error('Leaflet indisponible : connexion ou chargement externe bloqué');
+}
+const map=L.map('map').fitBounds(lakes.map(l=>[l.lat,l.lng]),{padding:[24,24]});
+const tileSources=[
+ ['OpenStreetMap','https://tile.openstreetmap.org/{z}/{x}/{y}.png','© OpenStreetMap contributors'],
+ ['Carto clair','https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png','© OpenStreetMap contributors © CARTO'],
+ ['Esri relief','https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}','Tiles © Esri']
+];
+let sourceIndex=0, loadedTiles=0, failedTiles=0, baseTiles;
+const tileState=document.getElementById('tileState');
+function activateTiles(i){
+ sourceIndex=i;loadedTiles=0;failedTiles=0;document.getElementById('mapSource').value=String(i);
+ if(baseTiles)map.removeLayer(baseTiles);
+ const [name,url,credit]=tileSources[i];
+ baseTiles=L.tileLayer(url,{maxZoom:19,attribution:credit,crossOrigin:false}).addTo(map);
+ tileState.textContent='Chargement du fond '+name+'…';
+ baseTiles.on('tileload',()=>{loadedTiles++;tileState.textContent='✓ Fond '+name+' chargé ('+loadedTiles+' images).';});
+ baseTiles.on('tileerror',()=>{
+  failedTiles++;
+  if(failedTiles>=3&&loadedTiles===0){
+   if(sourceIndex<tileSources.length-1){tileState.textContent='Fond '+name+' indisponible, essai du suivant…';activateTiles(sourceIndex+1);}
+   else tileState.textContent='⚠ Aucun fond chargé. Ouvre la page via un site HTTPS plutôt que directement depuis un fichier local.';
+  }
+ });
+}
+activateTiles(0);
+document.getElementById('mapSource').addEventListener('change',e=>activateTiles(Number(e.target.value)));
+let tileErrors=0;
+baseTiles.on('tileerror',()=>{if(++tileErrors===3){document.getElementById('mapWarning').textContent='⚠️ Le fond de carte ne charge pas. Vérifie Internet et ouvre ce fichier directement dans Chrome.';document.getElementById('mapWarning').classList.remove('hidden');}});
+baseTiles.on('tileload',()=>{document.getElementById('mapWarning').classList.add('hidden');});
+// Couche officielle BD TOPAGE® 2026 : plans d'eau nationaux via le service WMS du Sandre.
+const topageWms = L.tileLayer.wms('https://services.sandre.eaufrance.fr/geo/topage2026', {
+  layers: 'PlanEau_FXX_Topage2026',
+  format: 'image/png',
+  transparent: true,
+  version: '1.3.0',
+  opacity: 0.72,
+  attribution: '© IGN / OFB — BD TOPAGE® 2026, Sandre'
+});
+const topageToggle = document.getElementById('topageToggle');
+const topageStatus = document.getElementById('topageStatus');
+// Affichage automatique : les contours sont actifs dès l'ouverture de la carte.
+topageToggle.checked = false;
+topageStatus.textContent = 'Contours désactivés au démarrage pour alléger la carte. Active-les si besoin.';
+topageToggle.addEventListener('change', () => {
+  if (topageToggle.checked) {
+    topageWms.addTo(map);
+    topageStatus.textContent = 'Contours BD TOPAGE® actifs.';
+  } else {
+    map.removeLayer(topageWms);
+    topageStatus.textContent = 'Contours masqués temporairement.';
+  }
+});
+document.getElementById('franceView').addEventListener('click', () => {
+  map.setView([46.6, 2.45], 6);
+  if (!topageToggle.checked) { topageToggle.checked = true; topageToggle.dispatchEvent(new Event('change')); }
+});
+// Indexation cartographique à la demande : objets OSM dans la fenêtre visible.
+// Le service Overpass n'est pas un téléchargement national exhaustif.
+const nationalWatersLayer = L.layerGroup().addTo(map);
+const waterLoadStatus = document.getElementById('waterLoadStatus');
+const waterLoadButton = document.getElementById('loadNearbyWaters');
+document.getElementById('clearNearbyWaters').addEventListener('click',()=>{
+  nationalWatersLayer.clearLayers();lastWaterKey='';
+  waterLoadStatus.textContent = 'Points temporaires effacés. Les contours nationaux restent affichés.';
+});
+let watersBusy=false, lastWaterKey='';
+async function loadVisibleWaters(){
+  if(watersBusy)return;
+  if(map.getZoom()<10){waterLoadStatus.textContent='Zoome davantage (niveau 10 minimum) pour éviter une recherche trop volumineuse.';return;}
+  const bounds=map.getBounds();
+  const area=(bounds.getNorth()-bounds.getSouth())*(bounds.getEast()-bounds.getWest());
+  if(area>0.25){waterLoadStatus.textContent='Zone trop étendue : zoome encore un peu.';return;}
+  const bb=[bounds.getSouth(),bounds.getWest(),bounds.getNorth(),bounds.getEast()].map(v=>v.toFixed(6)).join(',');
+  const query='[out:json][timeout:22];(way["natural"="water"]('+bb+');relation["natural"="water"]('+bb+');way["landuse"="reservoir"]('+bb+'););out center 500;';
+  const requestKey=bb; if(requestKey===lastWaterKey)return;
+  watersBusy=true;waterLoadButton.disabled=true;
+  waterLoadStatus.textContent='Recherche des lacs, étangs, retenues et gravières dans la zone visible…';
+  try{
+    const resp=await fetch('https://overpass.kumi.systems/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(query),headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+    if(!resp.ok)throw new Error('Service cartographique indisponible (HTTP '+resp.status+')');
+    const data=await resp.json();
+    nationalWatersLayer.clearLayers();
+    const unique=new Set();let count=0;
+    for(const el of data.elements||[]){
+      const c=el.center||el; if(!Number.isFinite(c.lat)||!Number.isFinite(c.lon))continue;
+      const key=el.type+':'+el.id;if(unique.has(key))continue;unique.add(key);
+      const t=el.tags||{};const name=t.name||'Plan d’eau sans nom';
+      const type=t.water||((t.landuse==='reservoir')?'retenue':'plan d’eau');
+      const marker=L.circleMarker([c.lat,c.lon],{radius:6,color:'#145b83',weight:2,fillColor:'#50b5df',fillOpacity:0.85});
+      marker.bindTooltip(name);
+      marker.on('click',()=>{
+        selected={lat:c.lat,lng:c.lon};
+        document.getElementById('selection').textContent='💧 '+name;
+        document.getElementById('detail').textContent='OpenStreetMap · '+type+' · '+c.lat.toFixed(6)+', '+c.lon.toFixed(6);
+        document.getElementById('nav').classList.remove('hidden');
+        const sheet=document.getElementById('lakeSheet');
+        sheet.innerHTML='<h3>'+escapeHtml(name)+'</h3><p><b>Type :</b> '+escapeHtml(type)+'</p><p><b>Localisation :</b> '+c.lat.toFixed(6)+', '+c.lon.toFixed(6)+'</p><h4>🐟 Espèces et catégorie piscicole</h4><p>À vérifier auprès de la fédération départementale et du gestionnaire.</p><h4>🌙 Pêche de nuit et réserves</h4><p>À vérifier : aucune autorisation confirmée.</p><h4>🚗 Accès et stationnement</h4><p>À vérifier.</p><h4>🛶 Bateau de pêche / moteur électrique / bateau amorceur</h4><p>À vérifier séparément.</p><h4>⛺ Bivouac et camping</h4><div class="warning"><b>Statut : À vérifier</b> — aucune autorisation confirmée.</div><h4>🔎 Source</h4><p><a target="_blank" rel="noopener" href="https://www.openstreetmap.org/'+el.type+'/'+el.id+'">Voir la donnée OpenStreetMap</a></p><p class="muted">Fiche provisoire générée à partir de données cartographiques, le 16 novembre 2026. Les autorisations et règles locales ne sont pas vérifiées.</p>';
+        sheet.classList.remove('hidden');
+      });
+      nationalWatersLayer.addLayer(marker);count++;
+    }
+    lastWaterKey=requestKey;
+    waterLoadStatus.textContent=count+' plan(s) d’eau chargé(s) dans cette zone (limite 500 objets par recherche). Clique sur un point bleu pour ouvrir sa fiche provisoire. La couverture dépend d’OpenStreetMap.';
+  }catch(e){waterLoadStatus.textContent='Chargement impossible depuis ce navigateur ou service temporairement indisponible : '+(e.message||e);}
+  finally{watersBusy=false;waterLoadButton.disabled=false;}
+}
+waterLoadButton.addEventListener('click',()=>{lastWaterKey='';loadVisibleWaters()});
+let waterDelay;map.on('moveend',()=>{clearTimeout(waterDelay);if(map.getZoom()>=10)waterDelay=setTimeout(loadVisibleWaters,850)});
+document.getElementById('lacsFrance').addEventListener('click', () => window.open('https://lacs-de-france.fr/carte-des-lacs-de-france/', '_blank', 'noopener'));
+document.getElementById('topageInfo').addEventListener('click', () => window.open('https://www.data.gouv.fr/datasets/plans-deau-metropole-2026-bd-topage-r', '_blank', 'noopener'));
+// Recherche de lieux/plans d'eau : géocodage OpenStreetMap, puis affichage des contours BD TOPAGE®.
+const placeSearch = document.getElementById('placeSearch');
+const searchResults = document.getElementById('searchResults');
+const searchBtn = document.getElementById('searchBtn');
+let searchMarkers = L.layerGroup().addTo(map);
+async function runPlaceSearch() {
+  const q = placeSearch.value.trim();
+  if (!q) { searchResults.textContent = 'Saisis un nom de lac, une commune ou un département.'; return; }
+  // Index local des plans d'eau dont le nom n'est pas toujours reconnu par les géocodeurs.
+  const qNorm = q.toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (qNorm.includes('guirande') || qNorm.includes('felzins') || qNorm === '46270') {
+    const lat = 44.629517, lon = 2.143806;
+    searchMarkers.clearLayers();
+    searchResults.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'search-result';
+    const strong = document.createElement('strong');
+    strong.textContent = 'Lac de Guirande';
+    const small = document.createElement('small');
+    small.textContent = 'Felzins (46270), Lot — emplacement enregistré dans Mon Coin Nature';
+    btn.append(strong, small);
+    btn.addEventListener('click', () => {
+      searchMarkers.clearLayers();
+      const marker = L.marker([lat,lon]).bindPopup('<b>Lac de Guirande</b><br>Felzins (46270), Lot');
+      searchMarkers.addLayer(marker);
+      map.setView([lat,lon], 15);
+      marker.openPopup();
+    });
+    searchResults.appendChild(btn);
+    btn.click();
+    return;
+  }
+  searchBtn.disabled = true;
+  searchBtn.textContent = 'Recherche…';
+  searchResults.textContent = 'Recherche des lieux en France…';
+  try {
+    // Service principal Photon (Komoot), généralement plus tolérant aux recherches depuis une page HTML locale.
+    const photonUrl = 'https://photon.komoot.io/api/?limit=10&lang=fr&q=' + encodeURIComponent(q + ', France');
+    let normalized = [];
+    let firstError = null;
+    try {
+      const response = await fetch(photonUrl, {method:'GET', mode:'cors'});
+      if (!response.ok) throw new Error('Photon HTTP ' + response.status);
+      const data = await response.json();
+      normalized = (data.features || []).map(f => {
+        const c = f.geometry && f.geometry.coordinates;
+        const p = f.properties || {};
+        if (!c || c.length < 2) return null;
+        const parts = [p.name, p.street, p.housenumber, p.postcode, p.city || p.town || p.village || p.municipality, p.county, p.state, p.country].filter(Boolean);
+        return {lat:Number(c[1]), lon:Number(c[0]), label:p.name || parts[0] || q, detail:parts.join(', ') || 'France'};
+      }).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+    } catch (err) { firstError = err; }
+
+    // Secours : Nominatim si Photon ne répond pas ou ne renvoie aucun résultat.
+    if (!normalized.length) {
+      const nomUrl = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&country=France&q=' + encodeURIComponent(q);
+      const response = await fetch(nomUrl, {method:'GET', mode:'cors', headers:{'Accept':'application/json'}});
+      if (!response.ok) throw new Error('Les deux services de recherche sont indisponibles.');
+      const data = await response.json();
+      normalized = data.map(r => ({
+        lat:Number(r.lat), lon:Number(r.lon),
+        label:r.name || (r.display_name || q).split(',')[0],
+        detail:r.display_name || 'France',
+        bbox:r.boundingbox ? r.boundingbox.map(Number) : null
+      })).filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lon));
+    }
+
+    if (!normalized.length) {
+      searchResults.textContent = 'Aucun résultat trouvé. Essaie le nom de la commune, du lac ou du département.';
+      return;
+    }
+    searchMarkers.clearLayers();
+    searchResults.innerHTML = '';
+    normalized.forEach(r => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'search-result';
+      const strong = document.createElement('strong');
+      strong.textContent = r.label;
+      const small = document.createElement('small');
+      small.textContent = r.detail;
+      btn.appendChild(strong); btn.appendChild(small);
+      btn.addEventListener('click', () => {
+        const marker = L.marker([r.lat,r.lon]).bindPopup('<b>' + escapeHtml(r.label) + '</b><br>' + escapeHtml(r.detail));
+        searchMarkers.clearLayers(); searchMarkers.addLayer(marker); marker.openPopup();
+        if (r.bbox && r.bbox.length === 4) {
+          map.fitBounds([[r.bbox[0],r.bbox[2]],[r.bbox[1],r.bbox[3]]], {padding:[18,18], maxZoom:15});
+        } else {
+          map.setView([r.lat,r.lon], 14);
+        }
+        if (!topageToggle.checked) { topageToggle.checked = true; topageToggle.dispatchEvent(new Event('change')); }
+      });
+      searchResults.appendChild(btn);
+    });
+  } catch (err) {
+    searchResults.textContent = 'Le service de recherche ne répond pas depuis cette ouverture du fichier. Essaie d’ouvrir le HTML dans Chrome avec Internet activé. Détail : ' + (err && err.message ? err.message : 'requête bloquée');
+  } finally {
+    searchBtn.disabled = false;
+    searchBtn.textContent = 'Rechercher';
+  }
+}
+searchBtn.addEventListener('click', runPlaceSearch);
+placeSearch.addEventListener('keydown', e => { if (e.key === 'Enter') runPlaceSearch(); });
+
+
+const demoSpots=[
+ {name:'Spot pêche — démonstration',kind:'fishing',lat:44.211,lng:2.747,description:'Repère fictif pour tester la présentation, pas un poste de pêche vérifié.'},
+ {name:'Berge pêche — démonstration',kind:'fishing',lat:43.887,lng:1.006,description:'Position indicative pour tester le filtre pêche.'},
+ {name:'Forêt champignons — démonstration',kind:'mushroom',lat:44.35,lng:2.55,description:'Point fictif : aucune présence de champignons ni autorisation de cueillette confirmée.'},
+ {name:'Sous-bois — démonstration',kind:'mushroom',lat:44.57,lng:2.18,description:'Point fictif pour tester les repères champignons.'}
+];
+const demoLayer=L.layerGroup().addTo(map);
+function renderDemos(){
+ demoLayer.clearLayers();
+ demoSpots.filter(p=>filter==='all'||filter===p.kind).forEach(p=>{
+  L.marker([p.lat,p.lng],{icon:icon(p.kind)}).addTo(demoLayer)
+   .bindPopup('<b>'+escapeHtml(p.name)+'</b><br>'+escapeHtml(p.description)+'<br><small>🧪 Démonstration uniquement</small>');
+ });
+}
+const layer=L.layerGroup().addTo(map);let pins=[];let draft=null;let draftMarker=null;let selected=null;let filter='all';
+try{pins=JSON.parse(localStorage.getItem('mcn-pins-v2')||'[]')}catch(e){pins=[]}
+const icon=k=>L.divIcon({className:'',html:`<div style="font-size:26px;text-shadow:0 1px 3px white">${k==='mushroom'?'🍄':'🎣'}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+const lakeIcon=()=>L.divIcon({className:'',html:'<div style="width:34px;height:34px;border-radius:50%;background:#176b9a;border:3px solid white;box-shadow:0 1px 6px #0006;display:flex;align-items:center;justify-content:center;font-size:18px">💧</div>',iconSize:[34,34],iconAnchor:[17,17]});
+function save(){localStorage.setItem('mcn-pins-v2',JSON.stringify(pins))}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showPin(p){const marker=L.marker([p.lat,p.lng],{icon:icon(p.kind)}).addTo(layer);marker.bindPopup(`<b>${escapeHtml(p.name)}</b><br>${p.kind==='mushroom'?'🍄 Coin à champignons':'🎣 Coin de pêche'}<br><small>🔒 Privé sur cet appareil</small>`);marker.on('click',()=>selectPin(p));}
+function showLake(l){const marker=L.marker([l.lat,l.lng],{icon:lakeIcon()}).addTo(layer);marker.bindPopup(`<b>💧 ${escapeHtml(l.name)}</b><br>${escapeHtml(l.place)}<br><button class="lake-open-btn" data-lake="${escapeHtml(l.id)}" type="button">Voir la fiche détaillée</button>`);marker.on('click',()=>{marker.openPopup();});}
+function render(){renderDemos();layer.clearLayers();if(filter==='all'||filter==='lakes'||filter==='fishing')lakes.forEach(showLake);if(filter==='all'||filter==='mine'||filter==='mushroom'||filter==='fishing')pins.filter(p=>filter==='all'||filter==='mine'||p.kind===filter).forEach(showPin)}
+function selectPin(p){document.getElementById('lakeSheet').classList.add('hidden');selected=p;document.getElementById('selection').textContent=p.name;document.getElementById('detail').textContent=`${p.kind==='mushroom'?'🍄 Champignons':'🎣 Pêche'} · ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)} · Privé sur cet appareil${p.description?' · '+p.description:''}`;document.getElementById('nav').classList.remove('hidden')}
+function selectLake(l){
+ selected={lat:l.lat,lng:l.lng};
+ document.getElementById('selection').textContent='💧 '+l.name;
+ document.getElementById('detail').textContent=`${l.place} · GPS : ${l.lat.toFixed(6)}, ${l.lng.toFixed(6)} · ${l.source}.`;
+ document.getElementById('nav').classList.remove('hidden');
+ const sheet=document.getElementById('lakeSheet');
+ const fish=l.fish.map(x=>`<span class="tag">${escapeHtml(x)}</span>`).join('');
+ const sources=l.sources.map(s=>`<li><a href="${s[1]}" target="_blank" rel="noopener">${escapeHtml(s[0])}</a></li>`).join('');
+ sheet.innerHTML=`<h3>Fiche du lac</h3>
+ <p><b>${escapeHtml(l.size)}</b> ${escapeHtml(l.category)}</p>
+ <h4>🐟 Espèces signalées</h4><p>${fish}</p>
+ ${l.special?`<div class="warning">⚠️ ${escapeHtml(l.special)}</div>`:''}
+ <h4>🌙 Pêche de nuit et réserves</h4><p>${escapeHtml(l.night)}</p>
+ <h4>🚗 Accès et stationnement</h4><p>${escapeHtml(l.access)}</p>
+ <h4>🛶 Bateau et mise à l’eau</h4><p>${escapeHtml(l.boat)}</p>
+ <h4>⛺ Bivouac et camping</h4><div class="warning"><b>Statut : À vérifier</b><br>${escapeHtml(l.bivouac)}</div>
+ <h4>📷 Photos et présentation</h4><p><a href="${l.photos}" target="_blank" rel="noopener">Voir la présentation et les photos du site</a></p>
+ <h4>🔎 Sources consultées</h4><ul>${sources}</ul>
+ <p class="muted">Fiche de travail — informations réglementaires à recontrôler avant chaque session. Mise à jour de la recherche : novembre 2026.</p>`;
+ sheet.classList.remove('hidden');
+}
+render();
+document.getElementById('map').addEventListener('click',e=>{
+ const btn=e.target.closest('.lake-open-btn');
+ if(!btn)return;
+ const lake=lakes.find(l=>l.id===btn.dataset.lake);
+ if(lake){selectLake(lake);document.getElementById('lakeSheet').scrollIntoView({behavior:'smooth',block:'start'});}
+});
+document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-filter]').forEach(x=>x.classList.remove('active'));b.classList.add('active');filter=b.dataset.filter;render()}));
+const editor=document.getElementById('editor');
+document.getElementById('add').onclick=()=>{if(draftMarker){layer.removeLayer(draftMarker);draftMarker=null}draft=null;editor.classList.remove('hidden');document.getElementById('editorHint').textContent='Maintenant, touche l’endroit souhaité sur la carte. Le marqueur pourra ensuite être déplacé.';document.getElementById('name').value='';document.getElementById('description').value='';document.getElementById('name').focus();map.getContainer().scrollIntoView({behavior:'smooth',block:'center'})};
+map.on('click',e=>{if(editor.classList.contains('hidden'))return;draft={lat:e.latlng.lat,lng:e.latlng.lng};if(draftMarker)layer.removeLayer(draftMarker);draftMarker=L.marker(e.latlng,{icon:icon(document.getElementById('kind').value),draggable:true}).addTo(layer).bindPopup('Déplace-moi si nécessaire, puis enregistre.').openPopup();draftMarker.on('dragend',()=>{const ll=draftMarker.getLatLng();draft.lat=ll.lat;draft.lng=ll.lng});document.getElementById('editorHint').textContent=`Position choisie : ${draft.lat.toFixed(5)}, ${draft.lng.toFixed(5)}. Tu peux faire glisser le marqueur pour ajuster.`});
+document.getElementById('kind').onchange=()=>{if(draftMarker)draftMarker.setIcon(icon(document.getElementById('kind').value))};
+document.getElementById('pinForm').onsubmit=e=>{e.preventDefault();if(!draft){alert('Touche d’abord la carte pour choisir l’emplacement du repère.');return}const p={lat:draft.lat,lng:draft.lng,kind:document.getElementById('kind').value,name:document.getElementById('name').value.trim(),description:document.getElementById('description').value.trim(),visibility:'private'};if(!p.name){alert('Donne un nom à ton repère.');return}pins.push(p);save();if(draftMarker)layer.removeLayer(draftMarker);draftMarker=null;draft=null;editor.classList.add('hidden');filter='all';document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x.dataset.filter==='all'));render();selectPin(p);map.setView([p.lat,p.lng],Math.max(map.getZoom(),12));};
+document.getElementById('cancel').onclick=()=>{if(draftMarker)layer.removeLayer(draftMarker);draftMarker=null;draft=null;editor.classList.add('hidden')};
+document.getElementById('locate').onclick=()=>{if(!navigator.geolocation){alert('Géolocalisation indisponible sur ce navigateur.');return}navigator.geolocation.getCurrentPosition(pos=>map.setView([pos.coords.latitude,pos.coords.longitude],14),()=>alert('Position non accessible. Vérifie les autorisations du navigateur.'))};
+function coords(){return `${selected.lat},${selected.lng}`}document.getElementById('google').onclick=()=>window.open('https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(coords()),'_blank');document.getElementById('waze').onclick=()=>window.open('https://waze.com/ul?ll='+encodeURIComponent(coords())+'&navigate=yes','_blank');
+</script></body></html>
