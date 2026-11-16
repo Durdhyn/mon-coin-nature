@@ -21,7 +21,7 @@ footer{padding:14px 4px;color:#6a766f;font-size:11px}
 @media(max-width:420px){#searchPanel .primary{padding:10px;font-size:13px}}.leaflet-control-layers{font-size:13px}.national-note{font-size:12px;color:#68766f}@media(min-width:700px){#map{height:560px}.formgrid{grid-template-columns:1fr 1fr}.formgrid .wide{grid-column:1/-1}}
 </style></head>
 <body>
-<header><div><h1>🍃 Mon Coin Nature</h1><small>Carte nationale — recherche des plans d’eau</small></div><span class="pill">V5.9 repères</span></header>
+<header><div><h1>🍃 Mon Coin Nature</h1><small>Carte nationale — recherche des plans d’eau</small></div><span class="pill">V6.0 fiches repères</span></header>
 <main>
 <section class="intro"><h2>Explorer la carte</h2><p>Explore les plans d’eau partout en France. Les contours nationaux sont affichés via BD TOPAGE® ; à l’échelle locale, charge les plans d’eau OpenStreetMap pour ouvrir leur fiche provisoire. Les trois fiches suivies et tes repères privés sont conservés.</p></section>
 <div class="toolbar"><button class="active" data-filter="all">Tout voir</button><button data-filter="lakes">💧 Lacs référencés</button><button data-filter="mushroom">🍄 Champignons</button><button data-filter="fishing">🎣 Pêche</button><button data-filter="mine">📍 Mes repères</button></div>
@@ -42,6 +42,7 @@ footer{padding:14px 4px;color:#6a766f;font-size:11px}
 </div>
 <section class="panel hidden" id="editor"><strong id="editorTitle">📍 Nouveau repère</strong><div class="muted" id="editorHint">Choisis un emplacement sur la carte.</div>
 <form id="pinForm" class="formgrid"><div><label for="kind">Type de repère</label><select id="kind"><option value="fishing">🎣 Coin de pêche</option><option value="mushroom">🍄 Coin à champignons</option></select></div><div><label for="name">Nom du repère</label><input id="name" maxlength="70" required></div><div class="wide"><label for="description">Description (facultatif)</label><textarea id="description" maxlength="500"></textarea></div><div class="wide muted">🔒 Repère privé, enregistré uniquement sur cet appareil.</div><div class="wide actions"><button class="primary" id="savePin" type="submit">Enregistrer mon repère</button><button type="button" id="cancel">Annuler</button></div></form></section>
+<section class="panel" id="selectionPanel"><strong id="selection">Aucun repère sélectionné</strong><div class="muted" id="detail">Les repères enregistrés apparaîtront ici. Tu peux tester en ajoutant un point sur la carte.</div><div class="actions hidden" id="pinActions"><button id="editPin">✏️ Modifier</button><button id="deletePin">🗑️ Supprimer</button></div><div class="actions hidden" id="nav"><button id="google">Google Maps</button><button id="waze">Waze</button></div></section>
 <section class="panel" id="nationalPanel">
 <strong>🗺️ Plans d’eau de France — BD TOPAGE® 2026</strong>
 <div class="muted">Les contours officiels des plans d’eau sont affichés automatiquement (lacs, étangs, retenues, gravières inondées…). La couche se charge depuis le service cartographique du Sandre et nécessite une connexion Internet.</div>
@@ -57,7 +58,7 @@ footer{padding:14px 4px;color:#6a766f;font-size:11px}
 </div>
 <div class="muted">Lacs de France sert de source complémentaire pour les fiches descriptives, activités et équipements. La carte TOPAGE affiche les géométries officielles ; la présence d’un plan d’eau ne confirme aucun droit de pêche, de stationnement ou de bivouac.</div>
 </section>
-<section class="panel"><strong id="selection">Aucun repère sélectionné</strong><div class="muted" id="detail">Les repères enregistrés apparaîtront ici. Tu peux tester en ajoutant un point sur la carte.</div><div class="actions hidden" id="pinActions"><button id="editPin">✏️ Modifier</button><button id="deletePin">🗑️ Supprimer</button></div><div class="actions hidden" id="nav"><button id="google">Google Maps</button><button id="waze">Waze</button></div></section>
+
 <section class="lake-sheet hidden" id="lakeSheet" aria-live="polite"></section>
 <section class="panel"><strong>À savoir pour cet essai</strong><div class="muted">💧 Les marqueurs bleus représentent les lacs référencés ; les icônes 🎣 et 🍄 représentent tes repères personnels. Tes repères sont stockés localement dans le navigateur de cet appareil et ne sont pas synchronisés. Les fonds de carte nécessitent une connexion Internet. La présence d’un lac sur la carte ne confirme aucun droit d’accès, de pêche ou de bivouac : ces informations devront être vérifiées séparément.</div></section>
 <footer>Carte © OpenStreetMap contributors · Recherche de lieux © OpenStreetMap/Photon et Nominatim · Données hydrographiques BD TOPAGE® 2026 © IGN / OFB — Sandre · Mon Coin Nature</footer>
@@ -291,7 +292,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 function showPin(p){const marker=L.marker([p.lat,p.lng],{icon:icon(p.kind)}).addTo(layer);marker.bindPopup(`<b>${escapeHtml(p.name)}</b><br>${p.kind==='mushroom'?'🍄 Coin à champignons':'🎣 Coin de pêche'}<br><small>🔒 Privé sur cet appareil</small>`);marker.on('click',()=>selectPin(p));}
 function showLake(l){const marker=L.marker([l.lat,l.lng],{icon:lakeIcon()}).addTo(layer);marker.bindPopup(`<b>💧 ${escapeHtml(l.name)}</b><br>${escapeHtml(l.place)}<br><button class="lake-open-btn" data-lake="${escapeHtml(l.id)}" type="button">Voir la fiche détaillée</button>`);marker.on('click',()=>{marker.openPopup();});}
 function render(){layer.clearLayers();if(filter==='all'||filter==='lakes'||filter==='fishing')lakes.forEach(showLake);if(filter==='all'||filter==='mine'||filter==='mushroom'||filter==='fishing')pins.filter(p=>filter==='all'||filter==='mine'||p.kind===filter).forEach(showPin)}
-function selectPin(p){document.getElementById('pinActions').classList.remove('hidden');document.getElementById('lakeSheet').classList.add('hidden');selected=p;document.getElementById('selection').textContent=p.name;document.getElementById('detail').textContent=`${p.kind==='mushroom'?'🍄 Champignons':'🎣 Pêche'} · ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)} · Privé sur cet appareil${p.description?' · '+p.description:''}`;document.getElementById('nav').classList.remove('hidden')}
+function selectPin(p){document.getElementById('pinActions').classList.remove('hidden');document.getElementById('lakeSheet').classList.add('hidden');selected=p;document.getElementById('selection').textContent=p.name;document.getElementById('detail').textContent=`${p.kind==='mushroom'?'🍄 Champignons':'🎣 Pêche'} · ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)} · Privé sur cet appareil${p.description?' · '+p.description:''}`;document.getElementById('nav').classList.remove('hidden');editor.classList.add('hidden');document.getElementById('selectionPanel').scrollIntoView({behavior:'smooth',block:'nearest'});}
 function selectLake(l){
  document.getElementById('pinActions').classList.add('hidden');
  selected={lat:l.lat,lng:l.lng};
@@ -336,7 +337,7 @@ function openEditor(p=null){
  document.getElementById('description').value=p?(p.description||''):'';
  document.getElementById('editorHint').textContent=p?'Tu peux déplacer le marqueur sur la carte, puis enregistrer.':'Touche un emplacement sur la carte, puis remplis le formulaire juste dessous.';
  if(p){draftMarker=L.marker([p.lat,p.lng],{icon:icon(p.kind),draggable:true}).addTo(layer);draftMarker.on('dragend',()=>{const ll=draftMarker.getLatLng();draft={lat:ll.lat,lng:ll.lng};});}
- map.getContainer().scrollIntoView({behavior:'smooth',block:'start'});
+ editor.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 document.getElementById('add').onclick=()=>openEditor();
 document.getElementById('editPin').onclick=()=>{if(selected&&pins.includes(selected))openEditor(selected)};
